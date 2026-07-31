@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Anton Bird</title>
+
+<link rel="stylesheet" href="style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+
+</head>
+
+<body>
+
+<div id="gameContainer"></div>
+
+<audio id="gameOverSound">
+    <source src="game over sound.mov" type="video/quicktime">
+</audio>
+
+<!-- MAIN MENU -->
+
+<div id="mainMenu" class="menu">
+
+<h1>ANTON BIRD</h1>
+
+<button id="playButton">PLAY</button>
+
+<button id="levelsButton">LEVELS</button>
+
+<button id="shopButton">SHOP</button>
+
+<button id="updatesButton">UPDATES</button>
+
+<button id="roadmapButton">ROAD MAP</button>
+
+<button id="levelCreatorButton">LEVEL CREATOR</button>
+
+</div>
+
+<!-- LEVEL SELECT -->
+
+<div id="levelMenu" class="menu hidden">
+
+<h2>Select Level</h2>
+
+<div id="levelButtons">
+
+<button class="levelButton" data-level="1">Level 1</button>
+
+<button class="levelButton locked" data-level="2">Level 2 🔒</button>
+
+<button class="levelButton locked" data-level="3">Level 3 🔒</button>
+
+<button class="levelButton locked" data-level="4">Level 4 🔒</button>
+
+<button class="levelButton locked" data-level="5">Level 5 🔒</button>
+
+<button class="levelButton locked" data-level="6">Level 6 🔒</button>
+
+<button class="levelButton locked" data-level="7">Level 7 🔒</button>
+
+</div>
+
+<button id="backFromLevels">Back</button>
+
+</div>
+
+<!-- SHOP -->
+
+<div id="shopMenu" class="menu hidden">
+
+<h2>Anton Shop</h2>
+
+<p id="coinDisplay">
+Coins: 0
+</p>
+
+<div id="skins"></div>
+
+<button id="backFromShop">
+Back
+</button>
+
+</div>
+
+
+<!-- UPDATES -->
+<div id="updatesMenu" class="menu hidden">
+    <div class="infoPanel">
+        <h2>Anton Bird v1.3 BETA Updates</h2>
+        <div class="changelog">
+            <h3>Added</h3>
+            <p>+ Updates menu</p>
+            <p>+ Road Map menu</p>
+            <p>+ Version display</p>
+            <p>+ Admin panel</p>
+            <p>+ White dotted aiming trail</p>
+            <p>+ Stretchy slingshot bands</p>
+            <p>+ 5 lives on Levels 4–7</p>
+
+            <h3>Removed</h3>
+            <p>- Nothing</p>
+
+            <h3>Fixes</h3>
+            <p>+ Stark Varg size reduced</p>
+            <p>+ Slingshot moved higher and further right</p>
+        </div>
+        <button id="backFromUpdates">Back</button>
+    </div>
+</div>
+
+<!-- ROAD MAP -->
+<div id="roadmapMenu" class="menu hidden">
+    <div class="infoPanel">
+        <h2>Road Map</h2>
+        <p class="roadmapItem">Custom Skins</p>
+        <p class="roadmapItem">Suggestion Box</p>
+        <button id="backFromRoadmap">Back</button>
+    </div>
+</div>
+
+<!-- ADMIN PASSWORD -->
+<div id="adminPasswordMenu" class="menu hidden">
+    <div class="infoPanel compactPanel">
+        <h2>Admin Login</h2>
+        <input id="adminPasswordInput" type="password" placeholder="Enter admin password">
+        <p id="adminPasswordError"></p>
+        <button id="adminLoginButton">Login</button>
+        <button id="adminPasswordCloseButton">Close</button>
+    </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanelMenu" class="menu hidden">
+    <div class="infoPanel compactPanel">
+        <h2>Admin Panel</h2>
+        <button id="adminUnlockSkins">Unlock All Skins</button>
+        <button id="adminInfiniteCoins">Infinite Coins</button>
+        <button id="adminUnlockLevels">Unlock All Levels</button>
+        <button id="adminPanelCloseButton">Close</button>
+    </div>
+</div>
+
+<!-- LEVEL CREATOR UI -->
+<div id="levelCreatorUI" class="hidden">
+    <div id="creatorTopBar">
+        <input id="creatorLevelName" type="text" maxlength="40" placeholder="Level Name" value="My Custom Level">
+        <button id="creatorPlayButton">PLAY LEVEL</button>
+        <button id="creatorEditButton" class="hidden">BACK TO EDITOR</button>
+        <button id="creatorClearButton">CLEAR</button>
+        <button id="creatorExitButton">MAIN MENU</button>
+    </div>
+    <div id="creatorPalette">
+        <h2>BUILD ITEMS</h2>
+        <p>Click an item, then click the map.</p>
+        <button class="creatorTool" data-tool="woodFlat">Wood Flat</button>
+        <button class="creatorTool" data-tool="woodUpright">Wood Upright</button>
+        <button class="creatorTool" data-tool="stoneFlat">Stone Flat</button>
+        <button class="creatorTool" data-tool="stoneUpright">Stone Upright</button>
+        <h3>Bikes</h3>
+        <button class="creatorTool" data-tool="bike1">1.5KW E-Bike</button>
+        <button class="creatorTool" data-tool="bike2">5KW E-Bike</button>
+        <button class="creatorTool" data-tool="bike3">EBOX 3.0</button>
+        <button class="creatorTool" data-tool="bike4">Tuttio</button>
+        <button class="creatorTool" data-tool="bike5">Surron LBX</button>
+        <button class="creatorTool" data-tool="bike6">Surron UBX</button>
+        <button class="creatorTool" data-tool="bike7">Stark Varg</button>
+        <button id="creatorDeleteButton">DELETE SELECTED</button>
+        <div class="creatorHelp">Drag placed items to move them.<br>RMB + drag moves the camera.<br>Delete removes selected item.<br>The map cannot move left of the slingshot.</div>
+    </div>
+</div>
+
+<div id="versionLabel">Anton Bird v1.3 BETA</div>
+
+<!-- HUD -->
+
+<div id="hud" class="hidden">
+
+<div id="coinsHUD">
+🪙 <span id="coins">0</span>
+</div>
+
+<div id="livesHUD">
+❤️❤️❤️
+</div>
+
+</div>
+
+<!-- GAME OVER -->
+
+<div id="gameOverMenu" class="menu hidden">
+
+<h1>GAME OVER</h1>
+
+<img
+id="uglyAnton"
+src="Birds/Ugly Anton.jpg"
+>
+
+<button id="retryButton">
+Retry
+</button>
+
+<button id="mainMenuButton">
+Main Menu
+</button>
+
+</div>
+
+<script src="save.js"></script>
+
+<script src="levels.js"></script>
+
+<script src="shop.js"></script>
+
+<script src="ui.js"></script>
+
+<script src="menu.js?v=13"></script>
+<script src="editor.js?v=13"></script>
+<script src="game.js?v=13"></script>
+
+<button id="resetButton" style="position:fixed;bottom:10px;left:10px;z-index:9999;">Reset Game</button>
+</body>
+</html>
