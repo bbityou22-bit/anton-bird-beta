@@ -310,6 +310,9 @@ document.addEventListener("DOMContentLoaded", () => {
         scene.mode === "play" ? scene.restartPlay() : scene.playLevel();
     });
     document.getElementById("creatorEditButton").addEventListener("click", () => window.levelCreatorScene?.returnToEdit());
+    document.getElementById("creatorLivesSelect").addEventListener("change", (event) => {
+        window.levelCreatorScene?.setLives(event.target.value);
+    });
     document.getElementById("creatorClearButton").addEventListener("click", () => {
         if (confirm("Clear every object from this custom level?")) window.levelCreatorScene?.clearLevel();
     });

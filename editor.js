@@ -14,6 +14,12 @@ class LevelCreatorScene extends Phaser.Scene {
         this.isPanning = false;
         this.panStartX = 0;
         this.panStartScrollX = 0;
+        this.savedLayout = [];
+        this.lives = 3;
+        this.maximumLives = 3;
+        this.roundEnding = false;
+        this.bikesRemaining = 0;
+        this.resultText = null;
     }
 
     preload() {
@@ -22,12 +28,9 @@ class LevelCreatorScene extends Phaser.Scene {
         if (!this.textures.exists("slingshot")) this.load.image("slingshot", "./slingshot.png");
 
         const bikes = [
-            ["creatorBike_1", "1.5KWEbike.png"],
-            ["creatorBike_2", "5kwEbike.png"],
-            ["creatorBike_3", "ebox3.0.png"],
-            ["creatorBike_4", "tuttio.png"],
-            ["creatorBike_5", "surronLBX1.png"],
-            ["creatorBike_6", "surronUBX.png"],
+            ["creatorBike_1", "1.5KWEbike.png"], ["creatorBike_2", "5kwEbike.png"],
+            ["creatorBike_3", "ebox3.0.png"], ["creatorBike_4", "tuttio.png"],
+            ["creatorBike_5", "surronLBX1.png"], ["creatorBike_6", "surronUBX.png"],
             ["creatorBike_7", "StarkVarg.png"]
         ];
         bikes.forEach(([key, file]) => {
@@ -60,20 +63,42 @@ class LevelCreatorScene extends Phaser.Scene {
         this.input.on("pointerup", this.handlePointerUp, this);
         this.input.keyboard.on("keydown-DELETE", () => this.deleteSelected());
         this.input.keyboard.on("keydown-BACKSPACE", () => this.deleteSelected());
+        this.matter.world.on("collisionstart", this.handleCollisions, this);
 
         window.levelCreatorScene = this;
         this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+            this.matter.world.off("collisionstart", this.handleCollisions, this);
             if (window.levelCreatorScene === this) window.levelCreatorScene = null;
         });
+        this.updateCreatorLivesDisplay();
+    }
+
+    update() {
+        if (this.mode !== "play" || !this.birdLaunched || !this.currentBird?.active || this.roundEnding) return;
+        const velocity = this.currentBird.body?.velocity || { x: 0, y: 0 };
+        const speed = Math.hypot(velocity.x, velocity.y);
+        const outOfBounds = this.currentBird.y > 760 || this.currentBird.x > this.worldWidth + 100 || this.currentBird.x < -100;
+        const launchedFor = this.time.now - (this.launchTime || this.time.now);
+        if (outOfBounds || (launchedFor > 2500 && speed < 0.65)) this.endBirdTurn();
     }
 
     setTool(tool) {
         if (this.mode !== "edit") return;
         this.selectedTool = tool;
         this.selectObject(null);
-        document.querySelectorAll(".creatorTool").forEach(btn => {
-            btn.classList.toggle("activeTool", btn.dataset.tool === tool);
-        });
+        document.querySelectorAll(".creatorTool").forEach(btn => btn.classList.toggle("activeTool", btn.dataset.tool === tool));
+    }
+
+    setLives(value) {
+        const parsed = Number(value) === 5 ? 5 : 3;
+        this.maximumLives = parsed;
+        this.lives = parsed;
+        this.updateCreatorLivesDisplay();
+    }
+
+    updateCreatorLivesDisplay() {
+        const display = document.getElementById("creatorLivesDisplay");
+        if (display) display.textContent = "❤️".repeat(Math.max(0, this.lives));
     }
 
     handlePointerDown(pointer, currentlyOver) {
@@ -85,44 +110,40 @@ class LevelCreatorScene extends Phaser.Scene {
         }
         if (this.mode === "play") return;
         if (currentlyOver && currentlyOver.length) return;
-        if (!this.selectedTool) {
-            this.selectObject(null);
-            return;
-        }
+        if (!this.selectedTool) { this.selectObject(null); return; }
         if (pointer.worldY > this.groundY - 20) return;
         this.placeObject(this.selectedTool, pointer.worldX, pointer.worldY);
     }
 
     handlePointerMove(pointer) {
         if (this.isPanning) {
-            const next = Phaser.Math.Clamp(this.panStartScrollX - (pointer.x - this.panStartX), 0, this.worldWidth - this.scale.width);
-            this.cameras.main.scrollX = next;
+            this.cameras.main.scrollX = Phaser.Math.Clamp(this.panStartScrollX - (pointer.x - this.panStartX), 0, this.worldWidth - this.scale.width);
             return;
         }
         if (this.mode === "play" && this.isDraggingBird && this.currentBird) this.dragBird(pointer);
     }
 
-    handlePointerUp(pointer) {
-        if (this.isPanning) {
-            this.isPanning = false;
-            return;
-        }
+    handlePointerUp() {
+        if (this.isPanning) { this.isPanning = false; return; }
         if (this.mode === "play" && this.isDraggingBird) this.releaseBird();
     }
 
-    placeObject(tool, x, y) {
-        x = Math.max(430, Math.round(x / 10) * 10);
-        y = Math.round(y / 10) * 10;
-        let object;
+    getDefinition(tool) {
         const definitions = {
             woodFlat: { kind: "block", type: "wood", width: 190, height: 30, colour: 0xb9783b, stroke: 0x6d421f },
             woodUpright: { kind: "block", type: "wood", width: 35, height: 190, colour: 0xb9783b, stroke: 0x6d421f },
             stoneFlat: { kind: "block", type: "stone", width: 190, height: 34, colour: 0x777777, stroke: 0x444444 },
             stoneUpright: { kind: "block", type: "stone", width: 40, height: 190, colour: 0x777777, stroke: 0x444444 }
         };
+        return definitions[tool] || null;
+    }
 
-        if (definitions[tool]) {
-            const d = definitions[tool];
+    placeObject(tool, x, y, angle = 0) {
+        x = Math.max(430, Math.round(x / 10) * 10);
+        y = Math.round(y / 10) * 10;
+        let object;
+        const d = this.getDefinition(tool);
+        if (d) {
             object = this.add.rectangle(x, y, d.width, d.height, d.colour).setStrokeStyle(3, d.stroke).setDepth(3);
             object.creatorData = { ...d, tool };
         } else if (tool.startsWith("bike")) {
@@ -130,10 +151,11 @@ class LevelCreatorScene extends Phaser.Scene {
             const scales = { 1: 0.28, 2: 0.26, 3: 0.27, 4: 0.27, 5: 0.27, 6: 0.22, 7: 0.09 };
             object = this.add.image(x, y, `creatorBike_${bikeIndex}`).setScale(scales[bikeIndex] || 0.25).setDepth(4);
             object.creatorData = { kind: "bike", bikeIndex, tool, scale: scales[bikeIndex] || 0.25 };
-        } else return;
+        } else return null;
 
+        object.setAngle(angle || 0);
         object.setInteractive({ draggable: true, useHandCursor: true });
-        object.on("pointerdown", (pointer) => {
+        object.on("pointerdown", pointer => {
             if (this.mode !== "edit" || pointer.rightButtonDown()) return;
             pointer.event.stopPropagation?.();
             this.selectObject(object);
@@ -146,6 +168,21 @@ class LevelCreatorScene extends Phaser.Scene {
         });
         this.editorObjects.push(object);
         this.selectObject(object);
+        return object;
+    }
+
+    captureLayout() {
+        return this.editorObjects.filter(obj => obj?.active).map(obj => ({
+            tool: obj.creatorData.tool, x: obj.x, y: obj.y, angle: obj.angle || 0
+        }));
+    }
+
+    rebuildLayout(layout, makePhysics = false) {
+        this.editorObjects.forEach(obj => { if (obj?.active) obj.destroy(); });
+        this.editorObjects = [];
+        layout.forEach(item => this.placeObject(item.tool, item.x, item.y, item.angle));
+        if (makePhysics) this.enableLevelPhysics();
+        else this.selectObject(null);
     }
 
     selectObject(object) {
@@ -166,19 +203,41 @@ class LevelCreatorScene extends Phaser.Scene {
         this.returnToEdit();
         this.editorObjects.forEach(obj => obj.destroy());
         this.editorObjects = [];
+        this.savedLayout = [];
         this.selectObject(null);
     }
 
     playLevel() {
         if (this.mode === "play") return;
+        this.savedLayout = this.captureLayout();
+        this.maximumLives = Number(document.getElementById("creatorLivesSelect")?.value) === 5 ? 5 : 3;
+        this.lives = this.maximumLives;
+        this.startPlayFromSavedLayout();
+    }
+
+    startPlayFromSavedLayout() {
         this.mode = "play";
+        this.roundEnding = false;
         this.selectedTool = null;
         this.selectObject(null);
+        this.resultText?.destroy();
+        this.resultText = null;
         document.querySelectorAll(".creatorTool").forEach(btn => btn.classList.remove("activeTool"));
         document.getElementById("creatorPlayButton").textContent = "RESTART LEVEL";
         document.getElementById("creatorEditButton").classList.remove("hidden");
         document.getElementById("creatorPalette").classList.add("hidden");
+        this.cameras.main.stopFollow();
+        this.cameras.main.scrollX = 0;
+        if (this.currentBird?.active) this.currentBird.destroy();
+        this.currentBird = null;
+        this.clearBands();
+        this.rebuildLayout(this.savedLayout, true);
+        this.updateCreatorLivesDisplay();
+        this.spawnBird();
+    }
 
+    enableLevelPhysics() {
+        this.bikesRemaining = 0;
         this.editorObjects.forEach(obj => {
             obj.disableInteractive();
             const d = obj.creatorData;
@@ -188,83 +247,161 @@ class LevelCreatorScene extends Phaser.Scene {
                     density: d.type === "stone" ? 0.008 : 0.003,
                     friction: 0.8, frictionAir: 0.01, restitution: 0.08, label: "block"
                 });
+                obj.setData("health", d.type === "stone" ? 110 : 55);
+                obj.setData("destroyed", false);
+                obj.setData("blockType", d.type);
             } else {
                 this.matter.add.gameObject(obj, {
                     shape: { type: "rectangle", width: Math.max(60, obj.displayWidth * 0.88), height: Math.max(45, obj.displayHeight * 0.75) },
                     density: 0.003, friction: 0.8, frictionAir: 0.018, restitution: 0.12, label: "bike"
                 });
+                obj.setData("health", 90);
+                obj.setData("destroyed", false);
+                this.bikesRemaining++;
             }
         });
-        this.spawnBird();
     }
 
     restartPlay() {
-        const snapshot = this.editorObjects.map(obj => ({ x: obj.x, y: obj.y, data: { ...obj.creatorData } }));
-        this.editorObjects.forEach(obj => obj.destroy());
-        this.editorObjects = [];
-        if (this.currentBird?.active) this.currentBird.destroy();
-        this.clearBands();
-        this.cameras.main.stopFollow();
-        this.cameras.main.scrollX = 0;
-        this.mode = "edit";
-        snapshot.forEach(item => this.placeObject(item.data.tool, item.x, item.y));
-        this.playLevel();
+        if (!this.savedLayout.length && this.editorObjects.length) this.savedLayout = this.captureLayout();
+        this.lives = this.maximumLives;
+        this.startPlayFromSavedLayout();
     }
 
     returnToEdit() {
         document.getElementById("creatorPalette").classList.remove("hidden");
-        if (this.mode === "edit") return;
-        const snapshot = this.editorObjects.map(obj => ({ x: obj.x, y: obj.y, data: { ...obj.creatorData } }));
-        this.editorObjects.forEach(obj => obj.destroy());
-        this.editorObjects = [];
+        const layout = this.savedLayout.length ? this.savedLayout : this.captureLayout();
         if (this.currentBird?.active) this.currentBird.destroy();
         this.currentBird = null;
         this.clearBands();
         this.cameras.main.stopFollow();
         this.cameras.main.scrollX = 0;
         this.mode = "edit";
-        snapshot.forEach(item => this.placeObject(item.data.tool, item.x, item.y));
-        this.selectObject(null);
+        this.roundEnding = false;
+        this.resultText?.destroy();
+        this.resultText = null;
+        this.rebuildLayout(layout, false);
         document.getElementById("creatorPlayButton").textContent = "PLAY LEVEL";
         document.getElementById("creatorEditButton").classList.add("hidden");
     }
 
     spawnBird() {
         if (this.currentBird?.active) this.currentBird.destroy();
+        if (this.lives <= 0) { this.showResult("GAME OVER"); return; }
         this.currentBird = this.matter.add.image(this.slingshotAnchor.x, this.slingshotAnchor.y, "selectedBird");
         this.currentBird.setDisplaySize(96, 96).setCircle(40).setDensity(0.015).setFriction(0.7).setFrictionAir(0.007).setBounce(0.25);
         this.currentBird.setIgnoreGravity(true).setVelocity(0, 0).setDepth(5).setInteractive({ useHandCursor: true });
         this.currentBird.body.label = "bird";
-        this.currentBird.on("pointerdown", (pointer) => {
-            if (this.mode !== "play" || this.birdLaunched) return;
+        this.currentBird.on("pointerdown", pointer => {
+            if (this.mode !== "play" || this.birdLaunched || this.roundEnding) return;
             pointer.event.stopPropagation?.();
             this.isDraggingBird = true;
             this.currentBird.setIgnoreGravity(true).setVelocity(0, 0);
         });
         this.isDraggingBird = false;
         this.birdLaunched = false;
+        this.roundEnding = false;
     }
 
     dragBird(pointer) {
         const a = this.slingshotAnchor;
-        let dx = pointer.worldX - a.x;
-        let dy = pointer.worldY - a.y;
+        let dx = pointer.worldX - a.x, dy = pointer.worldY - a.y;
         const dist = Math.hypot(dx, dy);
         if (dist > 180) { dx = dx / dist * 180; dy = dy / dist * 180; }
         if (dx > 35) dx = 35;
         this.currentBird.setPosition(a.x + dx, a.y + dy).setVelocity(0, 0);
-        this.drawBands();
-        this.drawTrajectory();
+        this.drawBands(); this.drawTrajectory();
     }
 
     releaseBird() {
+        if (!this.currentBird) return;
         this.isDraggingBird = false;
         this.birdLaunched = true;
+        this.launchTime = this.time.now;
         const dx = this.slingshotAnchor.x - this.currentBird.x;
         const dy = this.slingshotAnchor.y - this.currentBird.y;
         this.currentBird.setIgnoreGravity(false).setVelocity(dx * 0.22, dy * 0.22);
         this.clearBands();
         this.cameras.main.startFollow(this.currentBird, true, 0.09, 0.09);
+    }
+
+    endBirdTurn() {
+        if (this.roundEnding || this.mode !== "play") return;
+        this.roundEnding = true;
+        this.cameras.main.stopFollow();
+        this.time.delayedCall(650, () => {
+            if (this.currentBird?.active) this.currentBird.destroy();
+            this.currentBird = null;
+            this.lives--;
+            this.updateCreatorLivesDisplay();
+            if (this.bikesRemaining <= 0) this.showResult("LEVEL COMPLETE!");
+            else if (this.lives > 0) { this.cameras.main.scrollX = 0; this.spawnBird(); }
+            else this.showResult("GAME OVER");
+        });
+    }
+
+    showResult(message) {
+        this.roundEnding = true;
+        this.cameras.main.stopFollow();
+        this.resultText?.destroy();
+        this.resultText = this.add.text(this.scale.width / 2, 130, message, {
+            fontFamily: "Arial", fontSize: "54px", fontStyle: "bold", color: "#ffffff",
+            stroke: "#000000", strokeThickness: 8, align: "center"
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(50);
+    }
+
+    handleCollisions(event) {
+        if (this.mode !== "play") return;
+        event.pairs.forEach(pair => {
+            const a = pair.bodyA, b = pair.bodyB;
+            const impactSpeed = Math.max(this.getBodySpeed(a), this.getBodySpeed(b));
+            if (a.label === "bike" || b.label === "bike") {
+                const bike = a.label === "bike" ? a.gameObject : b.gameObject;
+                const other = a.label === "bike" ? b : a;
+                this.damageBike(bike, impactSpeed, other.label);
+            }
+            if (a.label === "block" || b.label === "block") {
+                this.damageBlock(a.label === "block" ? a.gameObject : b.gameObject, impactSpeed);
+            }
+        });
+    }
+
+    getBodySpeed(body) {
+        if (!body?.velocity) return 0;
+        return Math.hypot(body.velocity.x, body.velocity.y);
+    }
+
+    damageBike(bike, impactSpeed, sourceLabel) {
+        if (!bike?.active || bike.getData("destroyed") || impactSpeed < 2.3) return;
+        let damage = impactSpeed * 9;
+        if (sourceLabel === "bird") damage += 35;
+        const health = bike.getData("health") - damage;
+        bike.setData("health", health).setTint(0xff8a8a);
+        this.time.delayedCall(90, () => { if (bike?.active && !bike.getData("destroyed")) bike.clearTint(); });
+        if (health <= 0) this.destroyBike(bike);
+    }
+
+    destroyBike(bike) {
+        if (!bike?.active || bike.getData("destroyed")) return;
+        bike.setData("destroyed", true);
+        this.bikesRemaining = Math.max(0, this.bikesRemaining - 1);
+        this.tweens.add({
+            targets: bike, alpha: 0, scaleX: bike.scaleX * 0.25, scaleY: bike.scaleY * 0.25,
+            angle: bike.angle + 180, duration: 280,
+            onComplete: () => { if (bike.active) bike.destroy(); }
+        });
+        if (this.bikesRemaining <= 0) this.time.delayedCall(350, () => this.showResult("LEVEL COMPLETE!"));
+    }
+
+    damageBlock(block, impactSpeed) {
+        if (!block?.active || block.getData("destroyed") || impactSpeed < 4) return;
+        const multiplier = block.getData("blockType") === "stone" ? 3.5 : 6.5;
+        const health = block.getData("health") - impactSpeed * multiplier;
+        block.setData("health", health);
+        if (health <= 0) {
+            block.setData("destroyed", true);
+            this.tweens.add({ targets: block, alpha: 0, duration: 180, onComplete: () => { if (block.active) block.destroy(); } });
+        }
     }
 
     drawBands() {
