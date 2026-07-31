@@ -177,7 +177,7 @@ class LevelCreatorScene extends Phaser.Scene {
         document.querySelectorAll(".creatorTool").forEach(btn => btn.classList.remove("activeTool"));
         document.getElementById("creatorPlayButton").textContent = "RESTART LEVEL";
         document.getElementById("creatorEditButton").classList.remove("hidden");
-        document.getElementById("levelCreatorPanel").classList.add("hidden");
+        document.getElementById("creatorPalette").classList.add("hidden");
 
         this.editorObjects.forEach(obj => {
             obj.disableInteractive();
@@ -212,7 +212,7 @@ class LevelCreatorScene extends Phaser.Scene {
     }
 
     returnToEdit() {
-        document.getElementById("levelCreatorPanel").classList.remove("hidden");
+        document.getElementById("creatorPalette").classList.remove("hidden");
         if (this.mode === "edit") return;
         const snapshot = this.editorObjects.map(obj => ({ x: obj.x, y: obj.y, data: { ...obj.creatorData } }));
         this.editorObjects.forEach(obj => obj.destroy());
