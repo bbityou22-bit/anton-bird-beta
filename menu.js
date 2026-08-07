@@ -127,6 +127,36 @@ document.addEventListener("DOMContentLoaded", () => {
         hud.classList.add("hidden");
         stopGameScene();
         stopCreatorScene();
+
+        // If there is no pending published level, this is the normal editable creator.
+        if (!window.pendingOnlineLevel) {
+            const palette = document.getElementById("creatorPalette");
+            const editButton = document.getElementById("creatorEditButton");
+            const publishButton = document.getElementById("creatorPublishButton");
+            const clearButton = document.getElementById("creatorClearButton");
+            const playButton = document.getElementById("creatorPlayButton");
+            const levelName = document.getElementById("creatorLevelName");
+            const livesSelect = document.getElementById("creatorLivesSelect");
+
+            palette?.classList.remove("hidden");
+            editButton?.classList.add("hidden");
+            publishButton?.classList.remove("hidden");
+            clearButton?.classList.remove("hidden");
+
+            if (playButton) playButton.textContent = "PLAY LEVEL";
+
+            if (levelName) {
+                levelName.disabled = false;
+                levelName.classList.remove("onlineLevelReadOnly");
+                levelName.value = "My Custom Level";
+            }
+
+            if (livesSelect) {
+                livesSelect.disabled = false;
+                livesSelect.value = "3";
+            }
+        }
+
         levelCreatorUI.classList.remove("hidden");
         window.setTimeout(() => window.antonGame.scene.start("LevelCreatorScene"), 50);
     }

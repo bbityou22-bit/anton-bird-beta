@@ -73,9 +73,37 @@ class LevelCreatorScene extends Phaser.Scene {
             if (window.levelCreatorScene === this) window.levelCreatorScene = null;
         });
         this.updateCreatorLivesDisplay();
+
         if (window.pendingOnlineLevel) {
-            const pending = window.pendingOnlineLevel; window.pendingOnlineLevel = null;
+            const pending = window.pendingOnlineLevel;
+            window.pendingOnlineLevel = null;
             this.time.delayedCall(80, () => this.loadPublishedLevel(pending));
+        } else {
+            // Normal Level Creator must never inherit the read-only Online Level UI.
+            this.onlinePlayOnly = false;
+            this.mode = "edit";
+
+            const palette = document.getElementById("creatorPalette");
+            const editButton = document.getElementById("creatorEditButton");
+            const publishButton = document.getElementById("creatorPublishButton");
+            const clearButton = document.getElementById("creatorClearButton");
+            const playButton = document.getElementById("creatorPlayButton");
+            const levelName = document.getElementById("creatorLevelName");
+            const livesSelect = document.getElementById("creatorLivesSelect");
+
+            palette?.classList.remove("hidden");
+            editButton?.classList.add("hidden");
+            publishButton?.classList.remove("hidden");
+            clearButton?.classList.remove("hidden");
+
+            if (playButton) playButton.textContent = "PLAY LEVEL";
+
+            if (levelName) {
+                levelName.disabled = false;
+                levelName.classList.remove("onlineLevelReadOnly");
+            }
+
+            if (livesSelect) livesSelect.disabled = false;
         }
     }
 
