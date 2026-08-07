@@ -21,6 +21,7 @@ class LevelCreatorScene extends Phaser.Scene {
         this.bikesRemaining = 0;
         this.resultText = null;
         this.resizeHandle = null;
+        this.onlinePlayOnly = false;
     }
 
     preload() {
@@ -88,13 +89,14 @@ class LevelCreatorScene extends Phaser.Scene {
     }
 
     setTool(tool) {
-        if (this.mode !== "edit") return;
+        if (this.onlinePlayOnly || this.mode !== "edit") return;
         this.selectedTool = tool;
         this.selectObject(null);
         document.querySelectorAll(".creatorTool").forEach(btn => btn.classList.toggle("activeTool", btn.dataset.tool === tool));
     }
 
     setLives(value) {
+        if (this.onlinePlayOnly) return;
         const parsed = Number(value) === 5 ? 5 : 3;
         this.maximumLives = parsed;
         this.lives = parsed;
@@ -235,7 +237,7 @@ class LevelCreatorScene extends Phaser.Scene {
     }
 
     deleteSelected() {
-        if (this.mode !== "edit" || !this.selectedObject) return;
+        if (this.onlinePlayOnly || this.mode !== "edit" || !this.selectedObject) return;
         const obj = this.selectedObject;
         this.editorObjects = this.editorObjects.filter(item => item !== obj);
         this.selectedObject = null;
@@ -243,6 +245,7 @@ class LevelCreatorScene extends Phaser.Scene {
     }
 
     clearLevel() {
+        if (this.onlinePlayOnly) return;
         this.returnToEdit();
         this.editorObjects.forEach(obj => obj.destroy());
         this.editorObjects = [];
@@ -263,16 +266,61 @@ class LevelCreatorScene extends Phaser.Scene {
         this.roundEnding = false;
         this.selectedTool = null;
         this.selectObject(null);
-        if (this.resizeHandle?.active) this.resizeHandle.destroy(); this.resizeHandle = null;
+
+        if (this.resizeHandle?.active) {
+            this.resizeHandle.destroy();
+        }
+        this.resizeHandle = null;
+
         this.resultText?.destroy();
         this.resultText = null;
-        document.querySelectorAll(".creatorTool").forEach(btn => btn.classList.remove("activeTool"));
-        document.getElementById("creatorPlayButton").textContent = "RESTART LEVEL";
-        document.getElementById("creatorEditButton").classList.remove("hidden");
-        document.getElementById("creatorPalette").classList.add("hidden");
+
+        document.querySelectorAll(".creatorTool").forEach(btn => {
+            btn.classList.remove("activeTool");
+        });
+
+        const playButton = document.getElementById("creatorPlayButton");
+        const editButton = document.getElementById("creatorEditButton");
+        const palette = document.getElementById("creatorPalette");
+        const publishButton = document.getElementById("creatorPublishButton");
+        const clearButton = document.getElementById("creatorClearButton");
+        const levelName = document.getElementById("creatorLevelName");
+
+        if (playButton) {
+            playButton.textContent = "RESTART LEVEL";
+            playButton.classList.remove("hidden");
+        }
+
+        if (palette) {
+            palette.classList.add("hidden");
+        }
+
+        if (this.onlinePlayOnly) {
+            // Published online levels are play-only.
+            if (editButton) editButton.classList.add("hidden");
+            if (publishButton) publishButton.classList.add("hidden");
+            if (clearButton) clearButton.classList.add("hidden");
+            if (levelName) {
+                levelName.disabled = true;
+                levelName.classList.add("onlineLevelReadOnly");
+            }
+        } else {
+            if (editButton) editButton.classList.remove("hidden");
+            if (publishButton) publishButton.classList.remove("hidden");
+            if (clearButton) clearButton.classList.remove("hidden");
+            if (levelName) {
+                levelName.disabled = false;
+                levelName.classList.remove("onlineLevelReadOnly");
+            }
+        }
+
         this.cameras.main.stopFollow();
         this.cameras.main.scrollX = 0;
-        if (this.currentBird?.active) this.currentBird.destroy();
+
+        if (this.currentBird?.active) {
+            this.currentBird.destroy();
+        }
+
         this.currentBird = null;
         this.clearBands();
         this.rebuildLayout(this.savedLayout, true);
@@ -313,20 +361,47 @@ class LevelCreatorScene extends Phaser.Scene {
     }
 
     returnToEdit() {
-        document.getElementById("creatorPalette").classList.remove("hidden");
+        if (this.onlinePlayOnly) {
+            return;
+        }
+
+        const palette = document.getElementById("creatorPalette");
+        const publishButton = document.getElementById("creatorPublishButton");
+        const clearButton = document.getElementById("creatorClearButton");
+        const levelName = document.getElementById("creatorLevelName");
+
+        if (palette) palette.classList.remove("hidden");
+        if (publishButton) publishButton.classList.remove("hidden");
+        if (clearButton) clearButton.classList.remove("hidden");
+
+        if (levelName) {
+            levelName.disabled = false;
+            levelName.classList.remove("onlineLevelReadOnly");
+        }
+
         const layout = this.savedLayout.length ? this.savedLayout : this.captureLayout();
-        if (this.currentBird?.active) this.currentBird.destroy();
+
+        if (this.currentBird?.active) {
+            this.currentBird.destroy();
+        }
+
         this.currentBird = null;
         this.clearBands();
         this.cameras.main.stopFollow();
         this.cameras.main.scrollX = 0;
         this.mode = "edit";
         this.roundEnding = false;
+
         this.resultText?.destroy();
         this.resultText = null;
+
         this.rebuildLayout(layout, false);
-        document.getElementById("creatorPlayButton").textContent = "PLAY LEVEL";
-        document.getElementById("creatorEditButton").classList.add("hidden");
+
+        const playButton = document.getElementById("creatorPlayButton");
+        const editButton = document.getElementById("creatorEditButton");
+
+        if (playButton) playButton.textContent = "PLAY LEVEL";
+        if (editButton) editButton.classList.add("hidden");
     }
 
     spawnBird() {
@@ -459,14 +534,40 @@ class LevelCreatorScene extends Phaser.Scene {
     }
 
     loadPublishedLevel(level) {
-        this.returnToEdit();
-        document.getElementById("creatorLevelName").value = level.name || "Online Level";
+        this.onlinePlayOnly = true;
+
+        const levelName = document.getElementById("creatorLevelName");
+        const livesSelect = document.getElementById("creatorLivesSelect");
+        const palette = document.getElementById("creatorPalette");
+        const editButton = document.getElementById("creatorEditButton");
+        const publishButton = document.getElementById("creatorPublishButton");
+        const clearButton = document.getElementById("creatorClearButton");
+
+        if (levelName) {
+            levelName.value = level.name || "Online Level";
+            levelName.disabled = true;
+            levelName.classList.add("onlineLevelReadOnly");
+        }
+
         const lives = Number(level.lives) === 5 ? 5 : 3;
-        document.getElementById("creatorLivesSelect").value = String(lives);
-        this.setLives(lives);
-        this.savedLayout = Array.isArray(level.layout) ? level.layout.map(x => ({...x})) : [];
-        this.rebuildLayout(this.savedLayout, false);
-        this.playLevel();
+
+        if (livesSelect) {
+            livesSelect.value = String(lives);
+            livesSelect.disabled = true;
+        }
+
+        if (palette) palette.classList.add("hidden");
+        if (editButton) editButton.classList.add("hidden");
+        if (publishButton) publishButton.classList.add("hidden");
+        if (clearButton) clearButton.classList.add("hidden");
+
+        this.maximumLives = lives;
+        this.lives = lives;
+        this.savedLayout = Array.isArray(level.layout)
+            ? level.layout.map(item => ({ ...item }))
+            : [];
+
+        this.startPlayFromSavedLayout();
     }
 
     drawBands() {

@@ -387,3 +387,9 @@ button:active{
 #onlineStatus { color:#fff; font-size:18px; margin-top:10px; }
 #creatorPlayLives { color:white; font-size:22px; white-space:nowrap; padding:0 6px; }
 #creatorPublishButton { background:#70df8b; }
+
+/* Public Online Levels are play-only */
+#creatorLevelName.onlineLevelReadOnly {
+    opacity: 0.8;
+    cursor: default;
+}
