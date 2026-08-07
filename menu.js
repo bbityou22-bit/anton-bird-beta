@@ -1,4 +1,4 @@
-const GAME_VERSION = "v1.3 BETA";
+const GAME_VERSION = "v1.4 BETA";
 
 let currentLevelNumber = 1;
 let isGameRunning = false;
@@ -21,6 +21,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const roadmapButton = document.getElementById("roadmapButton");
     const levelCreatorButton = document.getElementById("levelCreatorButton");
     const levelCreatorUI = document.getElementById("levelCreatorUI");
+    const onlineLevelsMenu = document.getElementById("onlineLevelsMenu");
+    const onlineLevelsButton = document.getElementById("onlineLevelsButton");
+    const backFromOnlineLevels = document.getElementById("backFromOnlineLevels");
 
     const backFromLevels = document.getElementById("backFromLevels");
     const backFromShop = document.getElementById("backFromShop");
@@ -51,7 +54,8 @@ document.addEventListener("DOMContentLoaded", () => {
             roadmapMenu,
             adminPasswordMenu,
             adminPanelMenu,
-            levelCreatorUI
+            levelCreatorUI,
+            onlineLevelsMenu
         ].forEach((menu) => {
             if (menu) menu.classList.add("hidden");
         });
@@ -239,6 +243,8 @@ document.addEventListener("DOMContentLoaded", () => {
     updatesButton.addEventListener("click", showUpdatesMenu);
     roadmapButton.addEventListener("click", showRoadmapMenu);
     levelCreatorButton.addEventListener("click", showLevelCreator);
+    onlineLevelsButton?.addEventListener("click", () => { hideAllMenus(); hud.classList.add("hidden"); onlineLevelsMenu.classList.remove("hidden"); window.AntonOnline?.loadLevels("liked"); });
+    backFromOnlineLevels?.addEventListener("click", showMainMenu);
 
     backFromLevels.addEventListener("click", showMainMenu);
     backFromShop.addEventListener("click", showMainMenu);
@@ -320,6 +326,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("creatorExitButton").addEventListener("click", showMainMenu);
 
     window.showMainMenu = showMainMenu;
+    window.showLevelCreator = showLevelCreator;
     window.showLevelMenu = showLevelMenu;
     window.showShopMenu = showShopMenu;
     window.startLevel = startLevel;

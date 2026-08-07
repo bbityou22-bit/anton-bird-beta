@@ -20,6 +20,7 @@ class LevelCreatorScene extends Phaser.Scene {
         this.roundEnding = false;
         this.bikesRemaining = 0;
         this.resultText = null;
+        this.resizeHandle = null;
     }
 
     preload() {
@@ -71,6 +72,10 @@ class LevelCreatorScene extends Phaser.Scene {
             if (window.levelCreatorScene === this) window.levelCreatorScene = null;
         });
         this.updateCreatorLivesDisplay();
+        if (window.pendingOnlineLevel) {
+            const pending = window.pendingOnlineLevel; window.pendingOnlineLevel = null;
+            this.time.delayedCall(80, () => this.loadPublishedLevel(pending));
+        }
     }
 
     update() {
@@ -99,6 +104,8 @@ class LevelCreatorScene extends Phaser.Scene {
     updateCreatorLivesDisplay() {
         const display = document.getElementById("creatorLivesDisplay");
         if (display) display.textContent = "❤️".repeat(Math.max(0, this.lives));
+        const playDisplay = document.getElementById("creatorPlayLives");
+        if (playDisplay) playDisplay.textContent = "❤️".repeat(Math.max(0, this.lives));
     }
 
     handlePointerDown(pointer, currentlyOver) {
@@ -165,6 +172,7 @@ class LevelCreatorScene extends Phaser.Scene {
             if (this.mode !== "edit") return;
             object.x = Math.max(430, Math.round(dragX / 10) * 10);
             object.y = Math.min(this.groundY - 15, Math.round(dragY / 10) * 10);
+            this.updateResizeHandle();
         });
         this.editorObjects.push(object);
         this.selectObject(object);
@@ -173,14 +181,20 @@ class LevelCreatorScene extends Phaser.Scene {
 
     captureLayout() {
         return this.editorObjects.filter(obj => obj?.active).map(obj => ({
-            tool: obj.creatorData.tool, x: obj.x, y: obj.y, angle: obj.angle || 0
+            tool: obj.creatorData.tool, x: obj.x, y: obj.y, angle: obj.angle || 0, width: obj.creatorData.width, height: obj.creatorData.height
         }));
     }
 
     rebuildLayout(layout, makePhysics = false) {
         this.editorObjects.forEach(obj => { if (obj?.active) obj.destroy(); });
         this.editorObjects = [];
-        layout.forEach(item => this.placeObject(item.tool, item.x, item.y, item.angle));
+        layout.forEach(item => {
+            const obj = this.placeObject(item.tool, item.x, item.y, item.angle);
+            if (obj && obj.creatorData.kind === "block" && item.width && item.height) {
+                obj.creatorData.width = item.width; obj.creatorData.height = item.height;
+                obj.setDisplaySize(item.width, item.height);
+            }
+        });
         if (makePhysics) this.enableLevelPhysics();
         else this.selectObject(null);
     }
@@ -189,6 +203,35 @@ class LevelCreatorScene extends Phaser.Scene {
         if (this.selectedObject?.active) this.selectedObject.clearTint?.();
         this.selectedObject = object;
         if (object?.active) object.setTint?.(0xffff99);
+        this.refreshResizeHandle();
+    }
+
+    refreshResizeHandle() {
+        if (this.resizeHandle?.active) this.resizeHandle.destroy();
+        this.resizeHandle = null;
+        const obj = this.selectedObject;
+        if (this.mode !== "edit" || !obj?.active || obj.creatorData?.kind !== "block") return;
+        this.resizeHandle = this.add.circle(0, 0, 10, 0xffffff).setStrokeStyle(3, 0x111111).setDepth(20).setInteractive({ draggable: true, useHandCursor: true });
+        this.input.setDraggable(this.resizeHandle);
+        this.updateResizeHandle();
+        this.resizeHandle.on("drag", (pointer) => {
+            if (!obj.active || this.mode !== "edit") return;
+            const localX = Math.abs(pointer.worldX - obj.x) * 2;
+            const localY = Math.abs(pointer.worldY - obj.y) * 2;
+            const horizontal = obj.creatorData.width >= obj.creatorData.height;
+            const minLong = 70, maxLong = 420, minShort = 24, maxShort = 90;
+            let w = horizontal ? Phaser.Math.Clamp(localX, minLong, maxLong) : Phaser.Math.Clamp(localX, minShort, maxShort);
+            let h = horizontal ? Phaser.Math.Clamp(localY, minShort, maxShort) : Phaser.Math.Clamp(localY, minLong, maxLong);
+            obj.creatorData.width = Math.round(w); obj.creatorData.height = Math.round(h);
+            obj.setDisplaySize(obj.creatorData.width, obj.creatorData.height);
+            this.updateResizeHandle();
+        });
+    }
+
+    updateResizeHandle() {
+        const obj = this.selectedObject;
+        if (!this.resizeHandle?.active || !obj?.active) return;
+        this.resizeHandle.setPosition(obj.x + obj.displayWidth / 2, obj.y + obj.displayHeight / 2);
     }
 
     deleteSelected() {
@@ -220,6 +263,7 @@ class LevelCreatorScene extends Phaser.Scene {
         this.roundEnding = false;
         this.selectedTool = null;
         this.selectObject(null);
+        if (this.resizeHandle?.active) this.resizeHandle.destroy(); this.resizeHandle = null;
         this.resultText?.destroy();
         this.resultText = null;
         document.querySelectorAll(".creatorTool").forEach(btn => btn.classList.remove("activeTool"));
@@ -402,6 +446,27 @@ class LevelCreatorScene extends Phaser.Scene {
             block.setData("destroyed", true);
             this.tweens.add({ targets: block, alpha: 0, duration: 180, onComplete: () => { if (block.active) block.destroy(); } });
         }
+    }
+
+
+    getPublishData() {
+        const layout = this.mode === "play" && this.savedLayout.length ? this.savedLayout : this.captureLayout();
+        return {
+            name: (document.getElementById("creatorLevelName")?.value || "Untitled Level").trim().slice(0, 40) || "Untitled Level",
+            lives: Number(document.getElementById("creatorLivesSelect")?.value) === 5 ? 5 : 3,
+            layout
+        };
+    }
+
+    loadPublishedLevel(level) {
+        this.returnToEdit();
+        document.getElementById("creatorLevelName").value = level.name || "Online Level";
+        const lives = Number(level.lives) === 5 ? 5 : 3;
+        document.getElementById("creatorLivesSelect").value = String(lives);
+        this.setLives(lives);
+        this.savedLayout = Array.isArray(level.layout) ? level.layout.map(x => ({...x})) : [];
+        this.rebuildLayout(this.savedLayout, false);
+        this.playLevel();
     }
 
     drawBands() {

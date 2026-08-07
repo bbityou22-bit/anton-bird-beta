@@ -1,0 +1,17 @@
+ANTON BIRD v1.4 BETA - ONLINE SETUP
+
+The visitor counter and Online Levels need shared online storage. The game is already coded for Vercel + Upstash Redis.
+
+1. In Vercel open your Anton Bird project.
+2. Go to Storage and create/connect an Upstash Redis database (Vercel may call this Marketplace -> Upstash Redis).
+3. Make sure these environment variables exist in the Anton Bird project:
+   UPSTASH_REDIS_REST_URL
+   UPSTASH_REDIS_REST_TOKEN
+   Vercel/Upstash normally adds them automatically when you connect the database.
+4. Redeploy the project after connecting the database.
+5. Open the deployed site. The main menu visitor number should update and Online Levels will be shared by everybody using that deployment.
+
+IMPORTANT:
+- Opening index.html locally or using Python's simple HTTP server cannot run the /api functions. Online features require the Vercel deployment.
+- The rest of Anton Bird still works locally.
+- Visitor count is unique per browser storage, not a perfect count of real people. Clearing browser storage creates a new visitor ID.

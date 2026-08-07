@@ -39,6 +39,10 @@
 
 <button id="levelCreatorButton">LEVEL CREATOR</button>
 
+<button id="onlineLevelsButton">ONLINE LEVELS</button>
+
+<div id="visitorCounter">👁️ Visitors: <span id="visitorCount">...</span></div>
+
 </div>
 
 <!-- LEVEL SELECT -->
@@ -91,7 +95,7 @@ Back
 <!-- UPDATES -->
 <div id="updatesMenu" class="menu hidden">
     <div class="infoPanel">
-        <h2>Anton Bird v1.3 BETA Updates</h2>
+        <h2>Anton Bird v1.4 BETA Updates</h2>
         <div class="changelog">
             <h3>Added</h3>
             <p>+ Updates menu</p>
@@ -101,6 +105,9 @@ Back
             <p>+ White dotted aiming trail</p>
             <p>+ Stretchy slingshot bands</p>
             <p>+ 5 lives on Levels 4–7</p>
+            <p>+ Online Levels browser and publishing</p>
+            <p>+ Visitor counter</p>
+            <p>+ Resizable creator blocks</p>
 
             <h3>Removed</h3>
             <p>- Nothing</p>
@@ -150,6 +157,8 @@ Back
     <div id="creatorTopBar">
         <input id="creatorLevelName" type="text" maxlength="40" placeholder="Level Name" value="My Custom Level">
         <button id="creatorPlayButton">PLAY LEVEL</button>
+        <button id="creatorPublishButton">PUBLISH LEVEL</button>
+        <span id="creatorPlayLives">❤️❤️❤️</span>
         <button id="creatorEditButton" class="hidden">BACK TO EDITOR</button>
         <button id="creatorClearButton">CLEAR</button>
         <button id="creatorExitButton">MAIN MENU</button>
@@ -181,7 +190,22 @@ Back
     </div>
 </div>
 
-<div id="versionLabel">Anton Bird v1.3 BETA</div>
+<!-- ONLINE LEVELS -->
+<div id="onlineLevelsMenu" class="menu hidden">
+  <div class="infoPanel onlinePanel">
+    <h2>Online Levels</h2>
+    <div id="onlineTabs">
+      <button class="onlineTab activeOnlineTab" data-sort="liked">Liked Levels</button>
+      <button class="onlineTab" data-sort="popular">Popular Levels</button>
+      <button class="onlineTab" data-sort="new">Newly Made Levels</button>
+    </div>
+    <div id="onlineStatus">Loading levels...</div>
+    <div id="onlineLevelList"></div>
+    <button id="backFromOnlineLevels">Back</button>
+  </div>
+</div>
+
+<div id="versionLabel">Anton Bird v1.4 BETA</div>
 
 <!-- HUD -->
 
@@ -226,9 +250,10 @@ Main Menu
 
 <script src="ui.js"></script>
 
-<script src="menu.js?v=14"></script>
-<script src="editor.js?v=14"></script>
-<script src="game.js?v=14"></script>
+<script src="online.js?v=15"></script>
+<script src="menu.js?v=15"></script>
+<script src="editor.js?v=15"></script>
+<script src="game.js?v=15"></script>
 
 <button id="resetButton" style="position:fixed;bottom:10px;left:10px;z-index:9999;">Reset Game</button>
 </body>
